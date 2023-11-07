@@ -8,18 +8,81 @@ output:
 
 ## Loading and preprocessing the data
 
+```{r}
+packages <- c('ggplot2', 'dplyr')
+#install all packages that are not already installed
+install.packages(setdiff(packages, rownames(installed.packages())))
+library(ggplot2)
+library(dplyr)
 
+unzip("activity.zip")
+activity <- read.csv("activity.csv")
+activity$date <- as.Date(activity$date)
+```
 
 ## What is mean total number of steps taken per day?
-
-
+```{r}
+steps_day <- activity %>%
+        group_by(date) %>%
+        summarize(steps = sum(steps, na.rm = TRUE)) 
+# Histogram 
+hist(steps_day$steps, main = "Daily Steps", xlab = "Steps")
+# Mean values 
+mean_steps <- mean(steps_day$steps, na.rm = T)
+# Median values
+median_steps <- median(steps_day$steps, na.rm = T)
+```
 
 ## What is the average daily activity pattern?
 
+```{r}
+steps_interval <- activity %>%
+        group_by(interval) %>%
+        summarize(steps = mean(steps, na.rm = TRUE))
 
+plot(steps_interval$steps ~ steps_interval$interval,
+     type = "l", xlab = "Intervals", ylab = "Mean of Steps",
+     main = "Steps By Interval")
 
+#Which 5-minute interval, on average across all the days in the data set, contains the maximum number of steps?
+print(steps_interval$interval[which.max(steps_interval$steps)])
+```
 ## Imputing missing values
 
+```{r}
+activity_complete <- activity
+
+missing_steps <- is.na(activity_complete$steps)
+
+activity_complete$steps[missing_steps] <- steps_interval$steps[match(activity_complete$interval[missing_steps], steps_interval$interval)]
+
+steps_day <- activity_complete %>%
+        group_by(date) %>%
+        summarize(steps = sum(steps, na.rm = TRUE)) 
+
+hist(steps_day$steps, main = "Daily Steps", xlab = "Steps")
+# Mean values 
+mean_steps <- mean(steps_day$steps, na.rm = T)
+# Median values
+median_steps <- median(steps_day$steps, na.rm = T)
+#The mean value increased after the imputation by 1.1%
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+activity_weeks <- activity_complete
+
+activity_weeks$day <- ifelse(weekdays(activity_weeks$date) %in% c("Saturday", "Sunday"), "weekend", "weekday")
+activity_weeks$day <- as.factor(activity_weeks$day)
+
+wkdayWkend <- activity_weeks %>%
+  group_by(day, interval) %>%
+  summarize(steps = mean(steps)) %>%
+  ungroup() %>%
+  mutate(day = factor(day))
+
+g <- ggplot (wkdayWkend, aes (interval, steps)) + geom_line() + facet_grid (day~.)
+g
+```
